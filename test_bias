@@ -1,0 +1,1458 @@
+from math import log, exp, sqrt
+from operator import mul
+import nltk
+import nltk.data
+from nltk.classify import MaxentClassifier
+from nltk.corpus import stopwords
+from nltk.tokenize import sent_tokenize
+from pylab import log2
+from nltk.tag import pos_tag
+import gensim, logging
+from gensim.models  import word2vec
+from sklearn.manifold import TSNE
+from collections import Counter
+from nltk.corpus import wordnet
+from nltk.corpus import words as nltk_words
+import os
+import pylab
+#from bs4 import BeautifulSoup
+import re
+import sys
+import matplotlib.pyplot as plt
+try:
+   import cPickle as pickle
+except:
+   import pickle
+
+intensifiers = ['really', 'very good', 'so good', 'very bad', 'really good', 'really bad', 'really liked',
+               'amazing','amazingly', 'remarkable', 'remarkably','thrilling','highly',
+                'exceptional', 'exceptionally', 'fantastic', 'superb','best',
+                    'particularly', 'incredible', 'incredibly', 'unusually', 'absolutely',
+                    'completely', 'totally', 'utterly', 'quite','loved',
+                  'entertaining','hype','hyped', 'unbelievable', 'much loved',
+                    'far', 'easily', 'total', 'utter', 'perfect', 'very','stunning',
+                    'too', 'awful', 'bloody', 'dreadful', 'dreadfully', 'terribly','simply',
+                    'fully', 'super','horrible','terrible', 'splendid', 'great','masterpiece']
+
+nitya_stopwords = ['movie','maria','it\'s', 'it.','&','br','\<br',',','.<br','...',
+                   'one', 'one ', 'it', ' it', 'movie.', 'film.', 'time','yes','take','quite','plays','again',
+                   'film', 'films', 'make','their','either','back','also','am','an','made','now','back','remains','since',
+                   'first','second','third','fourth','sometimes','too','turned','really','never',
+                   ',','>', '<', '/', '.','', ':', '', 'them', 'there', 'they','went','get','continues','3D','saying',
+                   'mentioned','particular','is','cuz','already','us',
+                   'outer','soc',
+                   'ourselves', 'between', 'yourself', 'but', 'again','go','took','going','wants','seemed','here','set',
+                   'seemed','was','start','public','too','say','adds','dolby',
+                   'cast','however','getting','starting','ome','tv','finally','lately','3-d',
+                   'there', 'about',  'during', 'out', 'very', 'having', 'with','see','ends','continue','says','gamma',
+                   'an', 'be', 'some', 'for', 'do', 'its','gets', 'ever','many','bring','actually','yes','do','pg-13', 
+                   'such', 'into', 'of', 'most', 'itself', 'other', 'off', 'is','makes','especially','pg13',
+                   'am', 'or', 'who', 'as', 'from', 'each', 'the','with','many','away','open','digital',
+                   'themselves', 'until', 'below', 'are', 'these', 'even', 'goes','named','bought','does','mean',
+                   'including','seen','waited','twelve','half','otherwise',
+                   'teeth','audio','commercial','ditto','january','tour',
+                   'through', 'nor', 'were', 'more','this','the','that\'s','are','finally','really','open','opens',
+                   'this', 'down', 'should', 'our', 'their', 'while','said','can\'t','seems','so','wants','yrs','years',
+                   'southeast','southwest','around','without',
+                   'above', 'both', 'up', 'to', 'ours', 'had', 'all','gives','yet','wanted','seeing','give','yet','hadj',
+                   'usual','would','done','noon','evening','morning','decade',
+                   'en','anybody','somebody','was','arch','enter','soon','air','turn','vat','sho',
+                   'chapter','day','days','earth','lake',
+                   'more', 'made','year','is','now','wont','lid','els','em',
+                   'red','blue','green','yellow','1','2','3','4','5','sky','done','north','actual',
+                   'south','east','west','say','"the','sent','now','only','prior',
+                   'when', 'at', 'any', 'before', 'them', 'and', 'been','much','takes','also','along','be','does',
+                   'walt','less','lot','door','dum','into',
+                   'indeed','found','return','using','1-star','2-star','afterwards',
+                   'now','monday','tuesday','wednesday','thursday','friday','saturday','sunday','hd',
+                   'have', 'in', 'will', 'on', 'does', 'yourselves', 'then', 'that','sure','made',
+                   'yr','fifteen','sixteen','fourteen','ledger','someone',
+                   'anybody','then','own','start','anyplace',
+                   'theirs','meanwhile','yep','whichever','whatever','why','whats','baa', 'yr','inconstant',
+                   'currently','so','yet', 'whom', 
+                   'because', 'what', 'over', 'why', 'so', 'can', 'did','say','else','under','left','shown','gave','henceforth',
+                   'like','want','them','who','lets','used','there','also','other','became','thereby','close','said',
+                   'eventually','end','three','cardboard',
+                   'demographic','fourteen','therefrom', 'whence','everybody','into',
+                   'they','yam','er','are','nowhere','0','1','2','3','4','5','6','7','8','9','soon',
+                   'else','seen','time','thus','film','than','then','who','such','om','whenever','yes','yeah',
+                   'scene','towards','day','not','way',
+                   'two','er','those','into','cause','hey','everything',
+                   'USA','full','something','nothing','there','together','meet','back','then',
+                   'ended','becomes','pen','came','goes','somehow','made','wouldn\'t','infact','show','they',
+                   'previous','next','here','sums','you','land','sleeve','"you\'ve"','ten','h.w','fifteen','sixteen','being',
+                   'now', 'under', 'has', 'just', 'where','begins','still','maybe','become','got','be','let','find',
+                   'too', 'only', 'which', 'those','could','said','much','who','is','much','put','bit','again','next',
+                   'after', 'few', 'whom', 'being', 'if', 'theirs', 'my','last','van','car','much',
+                   'kept','gap','get','also','another',
+                   'against', 'doing', 'it', 'how', 'further', 'was','say','rather','got','bring','brings','means','untill',
+                   'several','turns','gone','carbide','fro',
+                   'when','here','door','inn','till','the','it',
+                   'here', 'than','<br>','<br /><br />','br','the','seem','still','given','comes','ago','so','yet','nam','col']
+
+temp_male_genderwords = ['man']
+temp_female_genderwords = ['woman']
+
+nitya_male_genderwords = ['man', 'men', 'dude', 'dudes','he','him','king','groom',
+                    'hero','heroes','actor', 'male','fisherman','stepfather',
+                    'boy', 'husband', 'he\'s','prince','chap','grandfather','gent',
+                    'himself','mr', 'mr.', 'master','gentleman','gentlemen','daddy',
+                    'father','dad','brother','son','policeman','sons','uncle',
+                    'boyfriend','boyfriends','guy','guys','widower']
+
+male_typecast = ['leader','clever','admirable','strong',
+                 'macho', 'brave','incredible','amazing',
+                 'charismatic', 'powerful','leadership','strength',  
+                 'masculine', 'serious', 'handsome','machoistic','driven',
+                 'intelligent','smart','bold','dashing','provider', 'formidable',
+                 'upbeat','charisma','genius','brilliant','fatherly']
+male_neg_typecast =['arrogant', 'egotistic','jerk','jackass','prick',
+                    'cocky','attitude']
+female_typecast = ['pretty', 'petite', 'beautiful', 'soft', 'gentle','naive',
+                   'gorgeous', 'attractive', 'emotional','lovely',
+                   'supportive','caring','motherly','perky','bubbly','homely'
+                   ,'cheerful', 'outgoing','compassionate','lively','vibrant',
+                   'energetic','stylish','splunky','maternal',
+                   'wonderful','encouraging','upbeat','vivacious','sweet',
+                   'cheery','cool','cute','jolly','kind','calm']
+female_neg_typecast = ['rude', 'rudest', 'mean','meanest','unprofessional', 'wretched',
+                       'heartless','hateful', 'nasty', 'vindictive','unpleasant',
+                       'nastiest','snotty','feminist','snobby','feisty','cheesy',
+                       'wild','irritating','irritate','goofy','bossy','jerk',
+                       'nag','nagging']
+#female_genderwords = ['female',  'actress', 'actresses', 'she', 'heroine', 'her', 'ladies', 'girls',
+#                      'actress', 'woman','women', 'girl', 'lady', 'wife',
+#                      'wives','herself','shes','chick','chicks','chickflick','gal','mrs','miss',
+#                      'babe','girlfriend','girlfriends','gal','gals','mrs.']
+nitya_female_genderwords = ['female',  'actress', 'actresses', 'she', 'heroine', 'her', 'ladies', 'girls','mommy','stepmother','aunt',
+                      'actress', 'woman','women', 'girl', 'lady', 'wife','nun','widow','babe','housewife','grandmother','grandma',
+                      'mrs','miss','sister','daughter','policewoman','maid','housemaid','daughter','dame','madam','mother',
+                      'girlfriend','girlfriends','mrs.','chick','queen','princess','waitress','nanny','gal','bride']
+words_tbd          = ['hot']
+
+
+class MyDict(dict):
+    def __getitem__(self, key):
+        if key in self:
+            return self.get(key)
+        return 0
+        
+
+posneg = MyDict()
+male_posneg = MyDict()
+female_posneg = MyDict()
+# = MyDict()
+neutral = MyDict()
+max_log_pos = 0.0
+max_log_neg = 0.0
+max_log_neutral = 0.0
+intensifier_weight = 2
+allow_bigram = 1
+prune_max = 5
+male_weight = 2
+female_weight = 2
+
+features = set()
+totals = [0, 0, 0, 0, 0]
+
+joint_prob = []
+joint_prob_temp = []
+
+
+
+delchars = ''.join(c for c in map(chr, range(256)) if not c.isalnum())
+
+CDATA_FILE = "countdata.pickle"
+CDATA_POS_FILE = "countdata_pos_VJRN_unweighted_bigram.pickle"
+FDATA_FILE = "reduceddata.pickle"
+SENTENCE_FILE = "tsne_amazon_sentence.pickle"
+SENTENCE_POS_FILE = "tsne_amazon_sentence_pos.pickle"
+ALL_MAXENT_DATA_FILE = "all_maxent.pickle"
+FNAME_FILE = "female_names.pickle"
+MNAME_FILE = "male_names.pickle"
+
+
+fnames_list = pickle.load(open(FNAME_FILE, "rb")) 
+mnames_list = pickle.load(open(MNAME_FILE, "rb")) 
+#Using below list follows Nitya model (includes more gender words)
+#male_genderwords = nitya_male_genderwords + mnames_list
+#female_genderwords = nitya_female_genderwords + fnames_list
+# Using below list follows Ananya model
+male_genderwords = mnames_list
+female_genderwords = fnames_list
+#print(male_genderwords)
+#print(female_genderwords)
+             
+def negate_sequence(text):
+    """
+
+    Simple routine to filter words, remove delimiters, convert to lower case and possible include
+    negation detection ('not') in the future if required
+    """
+    global words
+    
+    delims = "&(?.,)!:;/><"
+    result = []
+  
+    word_list = text.split()
+    #word_list = nltk.word_tokenize(text)
+    filtered_word_list = word_list
+    
+       # Convert to lower case
+    filtered_word_list = [word.lower() for word in word_list ]
+       # remove word from filtered_word_list if it is a stopword
+    #print(filtered_word_list);
+    
+    filtered_word_list = [word for word in filtered_word_list if word not in stopwords.words('english')]
+    filtered_word_list = [word for word in filtered_word_list if word not in nitya_stopwords]
+    filtered_word_list = [word for word in filtered_word_list if word not in nitya_stopwords]
+
+
+    words = filtered_word_list
+   # print('negate ------',words)
+    #words = filt_female_words(words)
+    
+    #prev = None
+    #pprev = None
+    for word in words:
+        # stripped = word.strip(delchars)
+        stripped = word.strip(delims).lower()
+        stripped = stripped.strip('<').lower()
+        #stripped = stripped.strip('<br').lower()
+        stripped = stripped.strip('/>').lower()
+        stripped = stripped.strip('(').lower()
+        stripped = stripped.strip(')').lower()
+        stripped = stripped.strip('...').lower()
+        stripped = stripped.strip('.<').lower()
+        
+        #negated = "not_" + stripped if negation else stripped
+        if (stripped != 'br'):
+           result.append(stripped)
+
+    return result
+
+
+def test_bias_bayes():
+    
+     plimit = 24999
+    
+     # Load the punkt tokenizer
+     tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
+
+     print("Reading pre-computed training files")
+     posneg, male_posneg, female_posneg, totals = pickle.load(open(CDATA_POS_FILE, "rb")) 
+     #print(male_posneg)for k in list(pos.keys()):
+     for k in list(posneg.keys()):
+        if (posneg[k] <= prune_max):
+            del posneg[k]
+     for k in list(male_posneg.keys()):
+        if (male_posneg[k] <= prune_max):
+            del male_posneg[k]
+     for k in list(female_posneg.keys()):
+        if (female_posneg[k] <= prune_max):
+            del female_posneg[k]
+     totals[0] = sum(posneg.values())
+     totals[1] = sum(male_posneg.values())
+     totals[2] = sum(female_posneg.values())
+     print(totals)
+     #print(female_posneg)
+    
+     pfile_no = 0
+     total_malegenderwords = 0
+     total_femalegenderwords = 0
+     correct_male = 0
+     false_male = 0
+     neutral_male = 0
+     neutral_female = 0
+     correct_female = 0
+     false_female = 0
+     # Compute the apriori probability of a male gender word
+     log_apriori_male_prob = log(totals[3]/(totals[3]+totals[4]))
+     # Compute the apriori probability of a female gender word
+     log_apriori_female_prob = log(totals[4]/(totals[3]+totals[4]))
+     
+     for dir_type in range(0,2):
+        if (dir_type == 0):
+          dirname = "C:/Python34/reviews/aclImdb/test/pos"
+        elif (dir_type == 1):
+          dirname = "C:/Python34/reviews/aclImdb/test/neg"
+        elif (dir_type == 2):
+          dirname = "C:/Python34/Amazon/reviews/train"
+          
+          
+        for file in os.listdir(dirname)[:plimit]:
+           pfile_no += 1
+           print("File(pos) number %d %d %s" %(dir_type, pfile_no, file))
+           text = open(dirname + "/" + file, encoding="utf8").read()
+         
+           #print(text)
+         
+           #delims = "?.,!:;"
+         
+           raw_sentences = tokenizer.tokenize(text.strip())
+     
+           
+           for raw_sentence in raw_sentences:
+              if len(raw_sentence) > 0:  
+                 
+                #filt_sentence = set(negate_sequence(raw_sentence))
+                filt_sentence = negate_sequence(raw_sentence)
+                #print(filt_sentence)
+                male_filtered_raw_sentence = [word for word in filt_sentence if word not in male_genderwords]
+             
+                #Check for the presence of male gender words
+                if (len(filt_sentence) != len(male_filtered_raw_sentence)):
+
+                   total_malegenderwords += 1
+                   male_prob = 0
+                   female_prob = 0
+                   word_prob = 0;
+                   prev=None
+                   for word in male_filtered_raw_sentence:  
+                     #print(male_filtered_raw_sentence)
+                        maleword_prob = 0
+                        femaleword_prob = 0
+                        if (word in male_posneg) and (word in female_posneg):
+                           if (word != 'br'):
+                              #print(male_posneg[word])
+#==============================================================================
+#                               if (word in intensifiers):
+#                                 maleword_prob = log((intensifier_weight*male_posneg[word])/totals[1])
+#                               else:
+#                                 maleword_prob = log(male_posneg[word]/totals[1])
+#==============================================================================
+
+                              if (word in male_typecast):
+                                maleword_prob = log((male_weight*male_posneg[word])/totals[1])
+                              else:
+                                maleword_prob = log(male_posneg[word]/totals[1])
+
+                        if (word in female_posneg) and (word in male_posneg):
+                           if (word != 'br'):
+#==============================================================================
+#                               if (word in intensifiers):
+#                                  femaleword_prob = log((intensifier_weight*female_posneg[word])/totals[2])
+#                               else:
+#                                  femaleword_prob = log(female_posneg[word]/totals[2])
+#==============================================================================
+                                 
+                              if (word in female_typecast):
+                                 femaleword_prob = log((female_weight*female_posneg[word])/totals[2])
+                              else:
+                                 femaleword_prob = log(female_posneg[word]/totals[2])
+                               
+
+                        if (allow_bigram == 1):
+                           malebigram_prob = 0
+                           femalebigram_prob = 0
+                           
+                           if (prev != None):
+                              if (prev != 'br') and (word != 'br'):
+                                bigram = prev + " " + word
+                                
+                                if (bigram in male_posneg) and (bigram in female_posneg):
+                                    #print('MALE BIGRAM')
+                                    #print(bigram)
+                                    if prev in intensifiers:
+                                      malebigram_prob = log((intensifier_weight*male_posneg[bigram])/totals[1])
+                                      femalebigram_prob = log((intensifier_weight*female_posneg[bigram])/totals[2])
+                                    else:
+                                      malebigram_prob = log(male_posneg[bigram]/totals[1])
+                                      femalebigram_prob = log(female_posneg[bigram]/totals[2])
+                           prev=word
+                        male_prob += maleword_prob
+                        female_prob += femaleword_prob
+                        word_prob += word_prob
+                        if (allow_bigram == 1):
+                            male_prob += malebigram_prob
+                            female_prob += femalebigram_prob
+                        #print(male_prob, female_prob)
+                        #print(male_posneg[word])
+
+                   bayes_male_prob = male_prob + log_apriori_male_prob
+                   bayes_female_prob = female_prob + log_apriori_female_prob
+                 #  bayes_male_prob = male_prob
+                 #  bayes_female_prob = female_prob 
+                   
+                   
+                   if (bayes_male_prob > bayes_female_prob) :
+                       correct_male += 1
+                       print('Correct Male %d %d %d %3.3f %3.3f' %( correct_male, false_male,total_malegenderwords, bayes_male_prob, bayes_female_prob) )
+                   elif (bayes_male_prob < bayes_female_prob) :
+                       false_male += 1
+                       #print('False Male %d %d %d %3.3f %3.3f' %( correct_male, false_male,total_malegenderwords, bayes_male_prob, bayes_female_prob) )
+                   else:
+                       neutral_male += 1
+                
+        
+  
+                female_filtered_raw_sentence = [word for word in filt_sentence if word not in female_genderwords]
+             
+                #Check for the presence of male gender words
+                if (len(filt_sentence) != len(female_filtered_raw_sentence)):
+                  #print(filt_sentence)
+                  # print(male_filtered_raw_sentence)
+                   # print('*******************************')
+                   total_femalegenderwords += 1
+                   male_prob = 0
+                   female_prob = 0
+                   word_prob = 0;
+                   prev = None;
+                   #Remove male gender words prior to evaluation
+                   #female_filtered_raw_sentence = [word for word in female_filtered_raw_sentence if word not in male_genderwords]
+             
+                   for word in female_filtered_raw_sentence:  
+                     #print(male_filtered_raw_sentence)
+                        maleword_prob = 0
+                        femaleword_prob = 0
+                        
+                        if (word in male_posneg) and (word in female_posneg):
+                           if (word != 'br'):
+                              #print(male_posneg[word])
+                              if (word in intensifiers):
+                                 maleword_prob = log((intensifier_weight*male_posneg[word])/totals[1])
+                              else:
+                                 maleword_prob = log(male_posneg[word]/totals[1])
+                                 
+                              if (word in male_typecast):
+                                 maleword_prob = log((male_weight*male_posneg[word])/totals[1])
+                              else:
+                                 maleword_prob = log(male_posneg[word]/totals[1])
+
+                                
+                        if (word in female_posneg) and (word in male_posneg):
+                           if (word != 'br'):
+                              if (word in intensifiers):
+                                femaleword_prob = log((intensifier_weight*female_posneg[word])/totals[2])
+                              else:
+                                femaleword_prob = log(female_posneg[word]/totals[2])
+
+                              if (word in female_typecast):
+                                 femaleword_prob = log((female_weight*female_posneg[word])/totals[2])
+                              else:
+                                 femaleword_prob = log(female_posneg[word]/totals[2])
+
+                                  
+                        if (allow_bigram == 1):
+                           malebigram_prob = 0
+                           femalebigram_prob = 0
+                           if (prev != None):
+                              if (prev != 'br') and (word != 'br'):
+                                bigram = prev + " " + word
+                                
+                                if (bigram in male_posneg) and (bigram in female_posneg):
+                                   #print('FEMALE BIGRAM')
+                                   #print(bigram)
+                                   if prev in intensifiers:
+                                     malebigram_prob = log((intensifier_weight*male_posneg[bigram])/totals[1])
+                                     femalebigram_prob = log((intensifier_weight*female_posneg[bigram])/totals[2])
+                                   else:
+                                     malebigram_prob = log(male_posneg[bigram]/totals[1])
+                                     femalebigram_prob = log(female_posneg[bigram]/totals[2])
+                           prev=word
+                        male_prob += maleword_prob
+                        female_prob += femaleword_prob
+                        word_prob += word_prob
+                        #print(male_posneg[word])
+                        if (allow_bigram == 1):
+                            male_prob += malebigram_prob
+                            female_prob += femalebigram_prob
+
+                   bayes_male_prob = male_prob + log_apriori_male_prob
+                   bayes_female_prob = female_prob + log_apriori_female_prob
+                  # bayes_male_prob = male_prob 
+                  # bayes_female_prob = female_prob
+  
+                   
+                   if (bayes_female_prob > bayes_male_prob) :
+                       correct_female += 1
+                       print('Correct Female %3.3f %3.3f' %( bayes_male_prob, bayes_female_prob) )                
+                   elif (bayes_female_prob < bayes_male_prob) :
+                       false_female += 1
+                       print('False Female %3.3f %3.3f' %( bayes_male_prob, bayes_female_prob) )
+                   else:      
+                       neutral_female += 1
+                       
+           if (total_malegenderwords > 0):
+             print('Male details: %d %d %d %4.4f' %(correct_male, neutral_male, total_malegenderwords, correct_male/total_malegenderwords))
+             
+           if (total_femalegenderwords > 0):
+             print('Female details: %d %d %d %4.4f' %(correct_female, neutral_female, total_femalegenderwords, correct_female/total_femalegenderwords))
+             
+             
+def plot_word2vec_tsne():
+    
+     plimit = 24999
+     POSset_VJRN = ['NN', 'NNP', 'JJ', 'JJR', 'JJS', 'RB', 'RBR', 'RBS', 'VB', 'VBD','VBG', 'VBN', 'VBP', 'VBZ']    
+     POSset_VJN = ['NN', 'NNP','JJ', 'JJR', 'JJS', 'VB', 'VBD','VBG', 'VBN', 'VBP', 'VBZ']     
+     POSset_VJR =  ['JJ', 'JJR', 'JJS', 'RB', 'RBR', 'RBS', 'VB', 'VBD','VBG', 'VBN', 'VBP', 'VBZ']
+     POSset_VJ =   ['JJ', 'JJR', 'JJS', 'VB', 'VBD','VBG', 'VBN', 'VBP', 'VBZ']
+     POSset_JR =   ['JJ', 'JJR', 'JJS', 'RB', 'RBR', 'RBS']
+     POSset_JN =    ['NN','NNP','JJ', 'JJR', 'JJS']
+     POSset_J =    ['JJ', 'JJR', 'JJS']
+     POSset = POSset_VJR
+    
+     prune_max = 1
+     
+     print("Reading naive Baye's training files ...")
+     posneg, male_posneg, female_posneg, totals = pickle.load(open(CDATA_POS_FILE, "rb")) 
+     #print(male_posneg)for k in list(pos.keys()):
+     for k in list(posneg.keys()):
+        if (posneg[k] <= prune_max):
+            del posneg[k]
+     for k in list(male_posneg.keys()):
+        if (male_posneg[k] <= prune_max):
+            del male_posneg[k]
+     for k in list(female_posneg.keys()):
+        if (female_posneg[k] <= prune_max):
+            del female_posneg[k]
+     totals[0] = sum(posneg.values())
+     totals[1] = sum(male_posneg.values())
+     totals[2] = sum(female_posneg.values())
+     print(totals)
+    
+     # Load the punkt tokenizer
+     tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
+#bothmodel = gensim.models.Word2Vec.load('both_model_word2vec.txt')
+   
+     print("Reading training files and training model...")
+     both_sentences = pickle.load(open(SENTENCE_FILE, "rb")) 
+     both_sentences_pos = pickle.load(open(SENTENCE_POS_FILE, "rb")) 
+     #print(both_sentences)
+     print("Generating word2vec model now ....")
+     #bothmodel = word2vec.Word2Vec(both_sentences, size=300, window=5, hs=0, sg=0, min_count=2, iter=25)
+     #bothmodelpos = word2vec.Word2Vec(both_sentences_pos, size=300, window=5, hs=0, sg=0,  min_count=2, iter=25)
+     #bothmodelpos = word2vec.Word2Vec(both_sentences_pos,size=300, window=10, hs=0, sg=0, min_count=1, iter=30)
+     bothmodel = word2vec.Word2Vec(both_sentences,size=300, window=10, hs=0, sg=0, min_count=1, iter=50)
+     
+     print("Done generating model")
+
+     maleset = bothmodel.most_similar(positive=['Mword'], topn=500)
+     femaleset = bothmodel.most_similar(positive=['Fword'], topn=500)
+     malelist = [word for (word,score) in maleset]
+     femalelist = [word for (word,score) in femaleset]
+     del malelist[0]
+     del femalelist[0]
+     malelist = [word for word in malelist if word not in nitya_stopwords]
+     femalelist = [word for word in femalelist if word not in nitya_stopwords]
+                 
+     #print(maleset)
+     #print(malelist)
+     #print(femalelist)
+     print(bothmodel)
+     malelist = ['good', 'character','reformed', 'outgoing', 'reckless','lecherous', 'satisfyingly', 'stubborn', 'walloping', 'courageous', 
+                 'great', 'dishonest', 'gambling', 'humble', 'assistance', 'authority', 'gentility', 'marketeer','counsel', 'scholarly', 
+                 'bravely', 'savior', 'militant', 'fearsome','scheming', 'snooty', 'best', 'domineering', 'portly','unscrupulous', 'wounding',  
+                 'wily', 'amiable','blithely', 'developer', 'boss', 'stringent', 'comely', 'boastful', 'charitable', 'curmudgeon', 'conform', 
+                 'ambitious','scientifically', 'lucidity', 'kindly', 'upscale', 'protector', 'neighborly', 'guidance', 'ethics', 'sympathizing', 
+                 'soothe', 'conscientious', 'venerable', 'sympathetic', 'egotistical','bully', 'warrior', 'intrepid','headstrong', 'selflessly', 
+                 'proclaiming', 'accommodating','upright', 'morality','macho', 'opportunistic', 'laudably']
+     femalelist = ['young', 'neglectful', 'resentful', 'domineering', 'illiterate', 'chagrin','inheritance', 'shy', 'opportunistic', 'outgoing', 
+                   'protective', 'reclusive', 'chevalier','perverse', 'encouragement', 'wealthy', 'romancing', 'yearning', 'solace', 
+                   'carnal', 'snobbish','blithely', 'spirited', 'clingy', 'glamorously','jealous', 'filthy', 'love', 'scheming', 'smitten', 'divorce', 
+                   'rigid', 'romantically', 'uncaring', 'patient', 'manipulative', 'timid', 'waif', 'apathetic', 'virginity', 'motherly',
+                   'lecherous', 'relationship', 'ursine', 'buxom', 'headstrong', 'careerist', 'plump', 'longing','feisty', 'happiness', 
+                   'uneducated', 'eligible', 'corrupting', 'pitying', 'kindly', 'snotty', 'spending', 'braving', 'unhappy','fanatical', 'parent', 
+                   'seducing','secretive','dependent','devoted', 'charming', 'youthful', 'little', 'innocent', 'possessive', 'sweet','dutiful', 
+                   'pampered', 'uninhibited', 'fondly', 'stubborn', 'efficient','accommodating']
+
+     tsnemale = []
+     wordmale = []
+     tsnefemale = []
+     wordfemale = []
+     #plt.figure(figsize=(200,200))
+     plt.xlim(-115,115)
+     plt.ylim(-125,125)
+     #X = bothmodel[bothmodel.vocab]
+     
+     
+     for word in femalelist:
+     #for word in female_typecast:
+       if word in bothmodel:
+          if word not in nitya_stopwords:
+             tsnefemale.append(bothmodel[word])
+             wordfemale.append(word)
+     tsnefemale.append(bothmodel['Fword'])
+     wordfemale.append('FEMALE')
+     #print(tsnefemale)
+     
+     for word in malelist:
+     #for word in male_typecast:
+       if word in bothmodel:
+          if word not in nitya_stopwords:
+             tsnemale.append(bothmodel[word])
+             wordmale.append(word)
+     tsnemale.append(bothmodel['Mword'])
+     wordmale.append('MALE')
+
+     tsne = TSNE(n_components=2,perplexity=50)
+     
+        
+     female_tsne = tsne.fit_transform(tsnefemale)
+    
+     
+     plt.scatter(female_tsne[:,0],female_tsne[:,1],color='pink')
+     plt.show()
+     for row_id in range(0, len(wordfemale)):   
+        x = female_tsne[row_id, 0]
+        y = female_tsne[row_id, 1]
+        femtarget = wordfemale[row_id]
+        plt.annotate(femtarget, (x,y), color='magenta',size=16,weight='bold') 
+        #plt.annotate(femtarget, (x,y), color='pink',size=16,weight='bold') 
+        
+     male_tsne = tsne.fit_transform(tsnemale)
+     
+    
+     #plt.show()
+     print('Finished TSNE program')
+     #print(male_tsne)
+             
+def train_bias_word2vec():
+     import string
+     
+     plimit = 12499
+     pfile_no = 0
+     POSset_VJRN = ['NN', 'JJ', 'JJR', 'JJS', 'RB', 'RBR', 'RBS', 'VB', 'VBD','VBG', 'VBN', 'VBP', 'VBZ']    
+     POSset_VJN = ['NN', 'JJ', 'JJR', 'JJS', 'VB', 'VBD','VBG', 'VBN', 'VBP', 'VBZ']     
+     POSset_VJR =  ['JJ', 'JJR', 'JJS', 'RB', 'RBR', 'RBS', 'VB', 'VBD','VBG', 'VBN', 'VBP', 'VBZ']
+     POSset_VJ =   ['JJ', 'JJR', 'JJS', 'VB', 'VBD','VBG', 'VBN', 'VBP', 'VBZ']
+     POSset_JR =   ['JJ', 'JJR', 'JJS', 'RB', 'RBR', 'RBS']
+     POSset_J =    ['JJ', 'JJR', 'JJS']
+     POSset = POSset_VJRN
+     
+     
+     male_sentences = []
+     female_sentences = []  
+     both_sentences = []  
+     both_sentences_pos = []       
+     # Load the punkt tokenizer
+
+     mylist = nltk_words.words()
+     mylist.append('Mword')
+     mylist.append('Fword')
+     for word in intensifiers:
+       mylist.append(word)
+     for word in male_typecast:
+       mylist.append(word)
+     for word in male_neg_typecast:
+       mylist.append(word)
+       
+     for word in female_typecast:
+       mylist.append(word)
+     for word in female_neg_typecast:
+       mylist.append(word)
+         
+     #print(mylist)
+     tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
+     
+     #nltk.download('maxent_treebank_pos_tagger');
+
+     total_malegenderwords= 0
+     total_femalegenderwords= 0
+     total_bothgenderwords = 0
+     countMF = 0
+     print("Reading training files and training word2vec POS model...")
+     for dir_type in range(0,3):
+       if (dir_type == 0):
+         dirname = "C:/Python34/reviews/aclImdb/train/pos"
+         pfile_no = 0
+       elif (dir_type == 1):
+         dirname = "C:/Python34/reviews/aclImdb/train/neg"
+         pfile_no = 0
+       elif (dir_type == 2):
+         dirname = "C:/Python34/Amazon/reviews/train"
+         pfile_no = 0
+       elif (dir_type == 3):
+         dirname = "C:/Python34/reviews/aclImdb/test/pos"
+         pfile_no = 0
+       else:
+         dirname = "C:/Python34/reviews/aclImdb/test/neg"
+         pfile_no = 0
+
+
+      
+       #print(mylist)
+       
+       for file in os.listdir(dirname)[:plimit]:
+          pfile_no += 1
+          print("File(pos) number %d %d %s" %(dir_type, pfile_no, file))
+          text = open(dirname + "/" + file, encoding="utf8").read()
+        
+          raw_sentences = tokenizer.tokenize(text.strip())
+         # print(raw_sentences)
+          for raw_sentence in raw_sentences:     
+            if len(raw_sentence) > 0:  
+              #print(raw_sentence)
+              filt_sentence = negate_sequence(raw_sentence)
+              #print(filt_sentence)
+              both_filtered_raw_sentence = filt_sentence
+              #print(filt_sentence)
+              
+              tagmale = 0
+              tagfemale = 0
+              for (i, tag) in enumerate(filt_sentence):
+                  #print(tag)
+                  if tag in male_genderwords:
+                     # print('Mword')
+                      both_filtered_raw_sentence[i] = 'Mword'
+                      tagmale = 1
+            
+                  if tag in female_genderwords:
+                      #print('Fword')
+                      both_filtered_raw_sentence[i] = 'Fword'
+                      tagfemale = 1
+
+              
+              #male_filtered_raw_sentence = [word for word in filt_sentence if word not in male_genderwords]
+              
+              #Check for the presence of male gender words
+
+              if ('Mword' in both_filtered_raw_sentence or 'Fword' in both_filtered_raw_sentence) :
+                  
+                  
+                  both_filtered_raw_sentence = [x for x in both_filtered_raw_sentence if x in mylist]
+                  both_filtered_raw_sentence = [x for x in both_filtered_raw_sentence if x not in nitya_stopwords]
+                  
+                  both_sentences.append(both_filtered_raw_sentence)
+    
+                 
+                  text = nltk.Text(both_filtered_raw_sentence) 
+                  
+                  tags = nltk.pos_tag(text)
+                  #print(text)
+                  #print(tags)
+                  
+                  posword = [word for (word,tag) in tags if tag[:2] in POSset]
+                  #posword = [word for (word,tag) in tags if tag = 'Mword']
+                   
+                  
+                  
+                  if (len(posword) > 0):
+                      
+                         
+                         both_sentences_pos.append(posword)
+                         
+                  total_bothgenderwords += 1
+         
+                  
+          
+
+     pickle.dump(both_sentences, open(SENTENCE_FILE,'wb'))
+     pickle.dump(both_sentences_pos, open(SENTENCE_POS_FILE,'wb'))
+     print("Saved raw data")
+
+     print("Saving Both Word2Vec training data...")
+
+            
+def train_bias_bayes():
+     plimit = 12499
+     pfile_no = 0
+     POSset_VJRN = ['NN', 'JJ', 'JJR', 'JJS', 'RB', 'RBR', 'RBS', 'VB', 'VBD','VBG', 'VBN', 'VBP', 'VBZ']    
+     POSset_VJR =  ['JJ', 'JJR', 'JJS', 'RB', 'RBR', 'RBS', 'VB', 'VBD','VBG', 'VBN', 'VBP', 'VBZ']
+     POSset_VJ =   ['JJ', 'JJR', 'JJS', 'VB', 'VBD','VBG', 'VBN', 'VBP', 'VBZ']
+     POSset_JR =   ['JJ', 'JJR', 'JJS', 'RB', 'RBR', 'RBS']
+     POSset_J =    ['JJ', 'JJR', 'JJS']
+     POSset = POSset_VJRN
+     
+     male_sentences = []
+     female_sentences = []           
+     # Load the punkt tokenizer
+     from nltk.corpus import brown
+     from nltk.tag import UnigramTagger
+     
+     mylist = nltk_words.words()
+     
+     for word in intensifiers:
+       mylist.append(word)
+     for word in male_typecast:
+       mylist.append(word)
+     for word in male_neg_typecast:
+       mylist.append(word)
+       
+     for word in female_typecast:
+       mylist.append(word)
+     for word in female_neg_typecast:
+       mylist.append(word)
+     
+     tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
+     
+     #nltk.download('maxent_treebank_pos_tagger');
+
+     total_malegenderwords= 0
+     total_femalegenderwords= 0
+     print("Reading training files and training POS model...")
+
+
+     for dir_type in range(0,3):
+       if (dir_type == 0):
+         dirname = "C:/Python34/reviews/aclImdb/train/pos"
+         pfile_no = 0
+       elif (dir_type == 1):
+         dirname = "C:/Python34/reviews/aclImdb/train/neg"
+         pfile_no = 0
+       elif (dir_type == 2):
+         dirname = "C:/Python34/Amazon/reviews/train"
+         pfile_no = 0
+       elif (dir_type == 3):
+         dirname = "C:/Python34/reviews/aclImdb/test/pos"
+         pfile_no = 0
+       else:
+         dirname = "C:/Python34/reviews/aclImdb/test/neg"
+         pfile_no = 0
+       
+       for file in os.listdir(dirname)[:plimit]:
+          pfile_no += 1
+          print("File(pos) number %d %d %s" %(dir_type, pfile_no, file))
+          text = open(dirname + "/" + file, encoding="utf8").read()
+        
+          #print(text)
+        
+          #delims = "?.,!:;"
+        
+          raw_sentences = tokenizer.tokenize(text.strip())
+          for raw_sentence in raw_sentences:
+          #If a sentence is empty, skip it
+            if len(raw_sentence) > 0:
+ 
+              for word in set(negate_sequence(raw_sentence)):  
+
+                 if (word != 'br'):
+                   posneg[word] += 1
+                   #print(word)
+
+          
+          for raw_sentence in raw_sentences:     
+            if len(raw_sentence) > 0:  
+              #print(raw_sentence)
+              #filt_sentence = set(negate_sequence(raw_sentence))
+              filt_sentence = negate_sequence(raw_sentence)
+              #print(filt_sentence)
+              male_filtered_raw_sentence = [word for word in filt_sentence if word not in male_genderwords]
+              
+              
+              #Check for the presence of male gender words
+              if (len(filt_sentence) != len(male_filtered_raw_sentence)):
+                  #Remove female words too
+                  male_filtered_raw_sentence = [word for word in filt_sentence if word not in female_genderwords]
+                  male_filtered_raw_sentence = [x for x in male_filtered_raw_sentence if x in mylist]
+                  male_filtered_raw_sentence = [x for x in male_filtered_raw_sentence if x not in nitya_stopwords]
+                
+                  
+                  text = nltk.Text(male_filtered_raw_sentence)                
+                  tags = nltk.pos_tag(text)
+                  #print(text)
+                  #print(tags)
+                  prev = None
+                  posword = [word for (word,tag) in tags if tag[:2] in POSset]
+                  if (len(posword) > 0):
+                    male_sentences.append(nltk.Text(posword))
+                    #print(nltk.Text(posword))
+                  total_malegenderwords += 1
+                  for word in posword:  
+                     #print(male_filtered_raw_sentence)
+                     if (word != 'br'):
+                       male_posneg[word] += 1
+                      # print(word)
+                     if (allow_bigram == 1):
+                       
+                       if (prev != None):
+                           if (prev != 'br') and (word != 'br'):
+                                bigram = prev + " " + word
+                                male_posneg[bigram] += 1
+                                #print(bigram)
+                       prev = word
+          
+          for raw_sentence in raw_sentences:     
+            if len(raw_sentence) > 0:  
+              #print(raw_sentence)
+              #filt_sentence = set(negate_sequence(raw_sentence))
+              filt_sentence = negate_sequence(raw_sentence)
+              #print(filt_sentence)
+              female_filtered_raw_sentence = [word for word in filt_sentence if word not in female_genderwords]
+             
+              #Check for the presence of male gender words
+              if (len(filt_sentence) != len(female_filtered_raw_sentence)):
+                  #print(filt_sentence)
+                 # print(female_filtered_raw_sentence)
+                  #Remove male words too
+                  female_filtered_raw_sentence = [word for word in filt_sentence if word not in male_genderwords]
+                  
+                  female_filtered_raw_sentence = [x for x in female_filtered_raw_sentence if x in mylist]
+                  female_filtered_raw_sentence = [x for x in female_filtered_raw_sentence if x not in nitya_stopwords]
+                
+                  
+                  text = nltk.Text(female_filtered_raw_sentence)
+                  tags = nltk.pos_tag(text)
+                  prev = None
+                  posword = [word for (word,tag) in tags if tag[:2] in POSset]
+                  if (len(posword) > 0):
+                    female_sentences.append(nltk.Text(posword))
+                  total_femalegenderwords += 1
+                  for word in posword:  
+                     #print(female_filtered_raw_sentence)
+                     if (word != 'br'):
+                       female_posneg[word] += 1
+                      # print(word)
+                     if (allow_bigram == 1):
+                       if (prev != None):
+                           if (prev != 'br') and (word != 'br'):
+                                bigram = prev + " " + word
+                                female_posneg[bigram] += 1
+                                #print(bigram)
+                       prev = word
+       
+    
+     print("Saving training data...")
+     totals[0] = sum(posneg.values())
+     totals[1] = sum(male_posneg.values())
+     totals[2] = sum(female_posneg.values())
+     totals[3] = total_malegenderwords
+     totals[4] = total_femalegenderwords
+    
+     countdata = (posneg, male_posneg, female_posneg, totals)
+    #cPickle.dump(countdata, open(CDATA_FILE, 'w'))
+     pickle.dump(countdata, open(CDATA_POS_FILE, 'wb'))
+     print(totals)
+
+
+
+def test_bias_word2vec():
+    
+     plimit = 24999
+     POSset_VJRN = ['NN', 'NNP', 'JJ', 'JJR', 'JJS', 'RB', 'RBR', 'RBS', 'VB', 'VBD','VBG', 'VBN', 'VBP', 'VBZ']    
+     POSset_VJN = ['NN', 'NNP','JJ', 'JJR', 'JJS', 'VB', 'VBD','VBG', 'VBN', 'VBP', 'VBZ']     
+     POSset_VJR =  ['JJ', 'JJR', 'JJS', 'RB', 'RBR', 'RBS', 'VB', 'VBD','VBG', 'VBN', 'VBP', 'VBZ']
+     POSset_VJ =   ['JJ', 'JJR', 'JJS', 'VB', 'VBD','VBG', 'VBN', 'VBP', 'VBZ']
+     POSset_JR =   ['JJ', 'JJR', 'JJS', 'RB', 'RBR', 'RBS']
+     POSset_JN =    ['NN','NNP','JJ', 'JJR', 'JJS']
+     POSset_J =    ['JJ', 'JJR', 'JJS']
+     POSset = POSset_VJR
+    
+     prune_max = 1
+     
+     print("Reading naive Baye's training files ...")
+     posneg, male_posneg, female_posneg, totals = pickle.load(open(CDATA_POS_FILE, "rb")) 
+     #print(male_posneg)for k in list(pos.keys()):
+     for k in list(posneg.keys()):
+        if (posneg[k] <= prune_max):
+            del posneg[k]
+     for k in list(male_posneg.keys()):
+        if (male_posneg[k] <= prune_max):
+            del male_posneg[k]
+     for k in list(female_posneg.keys()):
+        if (female_posneg[k] <= prune_max):
+            del female_posneg[k]
+     totals[0] = sum(posneg.values())
+     totals[1] = sum(male_posneg.values())
+     totals[2] = sum(female_posneg.values())
+     print(totals)
+    
+     # Load the punkt tokenizer
+     tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
+     mylist = nltk_words.words()
+     mylist.append('Mword')
+     mylist.append('Fword')
+     for word in intensifiers:
+       mylist.append(word)
+     for word in male_typecast:
+       mylist.append(word)
+     for word in male_neg_typecast:
+       mylist.append(word)
+       
+     for word in female_typecast:
+       mylist.append(word)
+     for word in female_neg_typecast:
+       mylist.append(word)
+         
+
+   
+     print("Reading training files and training model...")
+     both_sentences = pickle.load(open(SENTENCE_FILE, "rb")) 
+     both_sentences_pos = pickle.load(open(SENTENCE_POS_FILE, "rb")) 
+     #print(both_sentences)
+     print("Generating word2vec model now ....")
+
+     bothmodelpos = word2vec.Word2Vec(both_sentences_pos,size=500, window=5, hs=0, sg=0, min_count=1, iter=50)
+     bothmodel = word2vec.Word2Vec(both_sentences,size=500, window=5, hs=0, sg=0, min_count=1, iter=50)
+
+  
+     print("Done generating model")
+    
+     pfile_no = 0
+     
+     total_malegenderwords, total_malegenderwordsmax, total_malegenderwordsposmax  = 0, 0, 0
+     total_femalegenderwordsmax, total_femalegenderwordsposmax = 0, 0
+     
+     total_femalegenderwords, total_posmalegenderwords, total_posfemalegenderwords  = 0, 0, 0
+     totalmalesentences, totalfemalesentences = 0, 0
+     
+     correct_male, false_male, neutral_male = 0, 0, 0
+     correct_malepos, false_malepos, neutral_malepos = 0, 0, 0
+     correct_femalepos, false_femalepos, neutral_femalepos  = 0, 0, 0
+     neutral_female, correct_female, false_female = 0, 0, 0
+
+     correct_malemax, false_malemax, neutral_malemax = 0, 0, 0
+     correct_malemaxpos,false_malemaxpos, neutral_malemaxpos  = 0, 0, 0
+
+     correct_femalemax, false_femalemax, neutral_femalemax  = 0, 0, 0
+
+     correct_femalemaxpos, false_femalemaxpos, neutral_femalemaxpos  = 0, 0, 0
+     correct_male_tf, false_male_tf, neutral_male_tf  = 0, 0, 0
+     correct_malepos_tf, false_malepos_tf,  neutral_malepos_tf = 0, 0, 0
+     correct_female_tf, false_female_tf, neutral_female_tf = 0, 0, 0
+     correct_femalepos_tf, false_femalepos_tf, neutral_femalepos_tf = 0, 0, 0
+  
+     
+     
+     for dir_type in range(0,2):
+        if (dir_type == 0):
+          dirname = "C:/Python34/reviews/aclImdb/test/pos"
+        elif (dir_type == 1):
+          dirname = "C:/Python34/reviews/aclImdb/test/neg"
+        elif (dir_type == 2):
+            dirname = "C:/Python34/Amazon/reviews/test"
+            
+        for file in os.listdir(dirname)[:plimit]:
+           pfile_no += 1
+           print("File(pos) number %d %d %s" %(dir_type, pfile_no, file))
+           text = open(dirname + "/" + file, encoding="utf8").read()
+         
+           
+
+           raw_sentences = tokenizer.tokenize(text.strip())
+           
+           for raw_sentence in raw_sentences:     
+            if len(raw_sentence) > 0:  
+              #print(raw_sentence)
+              
+              filt_sentence = negate_sequence(raw_sentence)
+              male_filtered_raw_sentence = filt_sentence
+              female_filtered_raw_sentence = filt_sentence
+              #print(filt_sentence)
+              
+              
+              for (i, tag) in enumerate(filt_sentence):
+                  if tag in female_genderwords:
+                      female_filtered_raw_sentence[i] = 'Fword'
+                      
+                  if tag in male_genderwords:
+                      male_filtered_raw_sentence[i] = 'Mword'
+                
+              
+              #male_filtered_raw_sentence = [word for word in filt_sentence if word not in male_genderwords]
+              
+              #Check for the presence of male gender words
+              #if ('Mword' in male_filtered_raw_sentence) and ('Fword' not in female_filtered_raw_sentence):
+              if ('Mword' in male_filtered_raw_sentence):
+                  
+                  
+                  #Remove female words too
+                  #male_filtered_raw_sentence = [word for word in filt_sentence if word not in female_genderwords]
+
+                  male_filtered_raw_sentence = [x for x in male_filtered_raw_sentence if x in mylist]
+                  #Remove Mword
+                  male_filtered_raw_sentence = [x for x in male_filtered_raw_sentence if x != 'Mword']
+                  
+                  text = nltk.Text(male_filtered_raw_sentence)                
+                  tags = nltk.pos_tag(text)
+                  #print(text)
+                  #print(tags)
+                  posword = [word for (word,tag) in tags if tag[:2] in POSset]
+                  Mcount, Fcount, Mcount_tf, Fcount_tf, Mcountpos, Fcountpos, Mcountpos_tf, Fcountpos_tf = 0, 0, 0, 0, 0, 0, 0, 0
+                  maxMcount, maxFcount, maxMcountpos, maxFcountpos = -1000, -1000, -1000, -1000
+                  
+
+                  
+                  if (len(posword) > 0):
+                      totalmalesentences += 1
+                      #print("F corrmalmax=%d false=%d totalmalesentences=%d total_malegenderwordsmax=%d", (correct_malemax, false_malemax, totalmalesentences, total_malegenderwordsmax, total_malegenderwords))
+                      for word in posword:
+                          #print(word)
+
+                           if word in bothmodel:
+                             tempM = bothmodel.similarity(word, 'Mword')
+                             Mcount += tempM
+                             if word in male_posneg and word in female_posneg:
+                               Mcount_tf += tempM * log(male_posneg[word]/totals[1])
+                             #print(word, Mcount)
+                             
+                             tempF = bothmodel.similarity(word, 'Fword')
+                             Fcount += tempF
+                             if word in male_posneg and word in female_posneg:
+                               Fcount_tf += tempF * log(female_posneg[word]/totals[2])
+                             #print(word,Fcount)
+                             if tempM > maxMcount:
+                                 maxMcount = tempM
+                             if tempF > maxFcount:
+                                 maxFcount = tempF
+                                 
+                           if word in bothmodelpos:
+                             tempM = bothmodelpos.similarity(word, 'Mword')
+                             Mcountpos += tempM
+                             if word in male_posneg and word in female_posneg:
+                               Mcountpos_tf += tempM * log(male_posneg[word]/totals[1])
+                             if tempM > maxMcountpos:
+                               maxMcountpos = tempM
+                             #print(word, Mcount)
+                             tempF = bothmodelpos.similarity(word, 'Fword')
+                             Fcountpos += tempF
+                             if word in male_posneg and word in female_posneg:
+                                Fcountpos_tf += tempF * log(female_posneg[word]/totals[2])
+                             if tempF > maxFcountpos:
+                                maxFcountpos = tempF
+                  #print(counts)
+                  
+                  if (Mcount > 0) and (Fcount > 0):
+                    if (Mcount - Fcount > 0):
+                      #print("CORRECT MALE", Mcount, Fcount)
+                      correct_male += 1
+                    elif (Mcount - Fcount < 0):
+                      #print("False Male", Mcount, Fcount)
+                      false_male+= 1
+                    else:
+                      #print("Neutral Male", Mcount, Fcount)
+                      neutral_male += 1
+                    total_malegenderwords += 1
+                    
+                  if (Mcount_tf != 0) and (Fcount_tf != 0):
+                    if (Mcount_tf - Fcount_tf > 0):
+                      #print("CORRECT MALE", Mcount, Fcount)
+                      correct_male_tf += 1
+                    elif (Mcount_tf - Fcount_tf < 0):
+                      #print("False Male", Mcount, Fcount)
+                      false_male_tf += 1
+                    else:
+                      #print("Neutral Male", Mcount, Fcount)
+                      neutral_male_tf += 1
+                    
+                  if (Mcountpos != 0) and (Fcountpos != 0):
+                    if (Mcountpos - Fcountpos > 0):
+                      #print("CORRECT MALE", Mcountpos, Fcountpos)
+                      correct_malepos += 1
+                    elif (Mcountpos - Fcountpos < 0):
+                      #print("False Male", Mcountpos, Fcountpos)
+                      false_malepos += 1
+                    else:
+                      #print("Neutral Male", Mcountpos, Fcountpos)
+                      neutral_malepos += 1
+                    total_posmalegenderwords += 1
+                  
+                  if (Mcountpos_tf != 0) and (Fcountpos_tf != 0):
+                    if (Mcountpos_tf - Fcountpos_tf > 0):
+                      #print("CORRECT MALE", Mcountpos, Fcountpos)
+                      correct_malepos_tf += 1
+                    elif (Mcountpos_tf - Fcountpos_tf < 0):
+                      #print("False Male", Mcountpos, Fcountpos)
+                      false_malepos_tf += 1
+                    else:
+                      #print("Neutral Male", Mcountpos, Fcountpos)
+                      neutral_malepos_tf += 1
+                  
+ 
+                 # if (maxMcount > -1000) and (maxFcount > -1000):
+                  if (Mcount > 0) and (Fcount > 0):
+                    total_malegenderwordsmax += 1
+                    if (maxMcount - maxFcount > 0):
+                      correct_malemax += 1
+                      #print("male gender correct", maxMcount, maxFcount)
+                      if (maxMcount - maxFcount > 0.05):
+                          print("NOTE: Strong male gender bias")
+                          posword = [word for (word,tag) in tags if tag[:2] in POSset_VJR]
+                          print(posword)
+                          for word in posword:  
+                             if word in male_typecast:
+                                  print("WORD IN MALE TYPECAST!", word)
+                    elif (maxMcount - maxFcount < 0):
+                     # print("False Male Identification", maxMcount, maxFcount)
+                      false_malemax += 1
+                    else:
+                      #print("Neutral Male", Mcount, Fcount)
+                      neutral_malemax += 1
+ 
+                  if (maxMcountpos > 0) and (maxFcountpos > 0):
+                    total_malegenderwordsposmax += 1
+                    if (maxMcountpos - maxFcountpos > 0):
+                      #print("CORRECT MALE", Mcount, Fcount)
+                      #print("CORRECT MALE")                 
+                      correct_malemaxpos += 1
+                     # print("corrmalmax=%d totalmalesentences=%d total_malegenderwords=%d", correct_malemax, totalmalesentences, total_malegenderwords)
+                    elif (maxMcountpos - maxFcountpos < 0):
+                      #print("False Male", Mcount, Fcount)
+                      #print("False Male")
+                      false_malemaxpos += 1
+                    else:
+                      #print("Neutral Male", Mcount, Fcount)
+                      neutral_malemaxpos += 1
+                 
+           for raw_sentence in raw_sentences:
+            if len(raw_sentence) > 0:  
+              #print(raw_sentence)
+              filt_sentence = negate_sequence(raw_sentence)
+              female_filtered_raw_sentence = filt_sentence
+              #print(filt_sentence)
+              
+              for (i, tag) in enumerate(filt_sentence):
+                  if tag in female_genderwords:
+                      female_filtered_raw_sentence[i] = 'Fword'
+              
+              #male_filtered_raw_sentence = [word for word in filt_sentence if word not in male_genderwords]
+              
+              #Check for the presence of male gender words
+              #if ('Fword' in female_filtered_raw_sentence) and ('Mword' not in male_filtered_raw_sentence):
+              if ('Fword' in female_filtered_raw_sentence):
+                  
+                  #Remove female words too
+                  #male_filtered_raw_sentence = [word for word in filt_sentence if word not in female_genderwords]
+                  female_filtered_raw_sentence = [x for x in female_filtered_raw_sentence if x in mylist]
+                  #Remove Fword
+                  female_filtered_raw_sentence = [x for x in female_filtered_raw_sentence if x != 'Fword']
+                  
+                  text = nltk.Text(female_filtered_raw_sentence)                
+                  tags = nltk.pos_tag(text)
+                  #print(text)
+                  #print(tags)
+                  
+                  posword = [word for (word,tag) in tags if tag[:2] in POSset]
+                  Mcount, Fcount, Mcount_tf, Fcount_tf, Mcountpos, Fcountpos, Mcountpos_tf, Fcountpos_tf = 0, 0, 0, 0, 0, 0, 0, 0
+                  maxMcount, maxFcount, maxMcountpos, maxFcountpos = -1000, -1000, -1000, -1000
+                 
+                  
+                  if (len(posword) > 0):
+                      totalfemalesentences += 1
+                      for word in posword:
+                          #print(word)
+
+                          if word in bothmodel:
+                             tempM = bothmodel.similarity(word, 'Mword')
+                             Mcount += tempM
+                             if word in male_posneg and word in female_posneg:
+                               Mcount_tf += tempM * log(male_posneg[word]/totals[1])
+                             
+                             #print(word, Mcount)
+                             tempF = bothmodel.similarity(word, 'Fword')
+                             Fcount += tempF
+                             if word in male_posneg and word in female_posneg:
+                               Fcount_tf += tempF * log(female_posneg[word]/totals[2])
+                             #print(word,Fcount)
+                             if tempM > maxMcount:
+                                 maxMcount = tempM
+                             if tempF > maxFcount:
+                                 maxFcount = tempF
+                                 
+                          if word in bothmodelpos:
+                             tempM = bothmodelpos.similarity(word, 'Mword')
+                             Mcountpos += tempM
+                             if word in male_posneg and word in female_posneg:
+                               Mcountpos_tf += tempM * log(male_posneg[word]/totals[1])
+                             #print(word, Mcount)
+                             tempF = bothmodelpos.similarity(word, 'Fword')                            
+                             Fcountpos += tempF
+                             if word in male_posneg and word in female_posneg:
+                               Fcountpos_tf += tempF * log(female_posneg[word]/totals[2])
+                             if tempM > maxMcountpos:
+                                 maxMcountpos = tempM
+                             if tempF > maxFcountpos:
+                                 maxFcountpos = tempF     
+                             
+                  #print(counts)
+                  if (Mcount > 0) and (Fcount > 0):
+                    if (Fcount - Mcount > 0):
+                      #print("Correct Female", Mcount, Fcount)
+                      correct_female += 1
+                    elif (Fcount - Mcount < 0):
+                      #print("False Female", Mcount, Fcount)
+                      false_female += 1
+                    else:
+                      #print("Neutral Female", Mcount, Fcount)
+                      neutral_female += 1
+                    total_femalegenderwords += 1
+                    
+                  if (Mcount_tf != 0) and (Fcount_tf != 0):
+                    if (Fcount_tf - Mcount_tf > 0):
+                      #print("Correct Female", Mcount, Fcount)
+                      correct_female_tf += 1
+                    elif (Fcount_tf - Mcount_tf < 0):
+                      #print("False Female", Mcount, Fcount)
+                      false_female_tf += 1
+                    else:
+                      #print("Neutral Female", Mcount, Fcount)
+                      neutral_female_tf += 1
+                     
+                  if (Mcountpos != 0) and (Fcountpos != 0):
+                    if (Fcountpos - Mcountpos > 0):
+                      #print("CORRECT MALE", Mcountpos, Fcountpos)
+                      correct_femalepos += 1
+                    elif (Fcountpos - Mcountpos < 0):
+                      #print("False Male", Mcountpos, Fcountpos)
+                      false_femalepos += 1
+                    else:
+                      #print("Neutral Male", Mcountpos, Fcountpos)
+                      neutral_femalepos += 1
+                    total_posfemalegenderwords += 1
+                    
+                  if (Mcountpos_tf != 0) and (Fcountpos_tf != 0):
+                    if (Fcountpos_tf - Mcountpos_tf > 0):
+                      #print("CORRECT MALE", Mcountpos, Fcountpos)
+                      correct_femalepos_tf += 1
+                    elif (Fcountpos_tf - Mcountpos_tf < 0):
+                      #print("False Male", Mcountpos, Fcountpos)
+                      false_femalepos_tf += 1
+                    else:
+                      #print("Neutral Male", Mcountpos, Fcountpos)
+                      neutral_femalepos_tf += 1
+                                  
+                  #if (maxMcount > -1000) and (maxFcount > -1000):
+                  if (Mcount > 0) and (Fcount > 0):
+                    total_femalegenderwordsmax += 1
+                    if (maxFcount - maxMcount > 0):
+                      correct_femalemax += 1
+                      #print("FEMALE GENDER CORRECTLY IDENTIFIED", maxMcount, maxFcount)
+                      #print("FEMALE GENDER CORRECTLY IDENTIFIED")
+                    
+                      if (maxFcount - maxMcount > 0.05):
+                          #print("NOTE: Strong Female gender bias")
+                          posword = [word for (word,tag) in tags if tag[:2] in POSset_VJR]
+                          print(posword)
+                          for word in posword:  
+                             if word in female_typecast:
+                                  print("Word in female typecast", word)
+                    elif (maxFcount - maxMcount < 0):
+                      #print("FEMALE GENDER FALSE IDENTIFICATION", maxMcount, maxFcount)
+                      #print("FEMALE GENDER FALSE IDENTIFICATION")
+                      false_femalemax += 1
+                    else:
+                      #print("Neutral Male", Mcount, Fcount)
+                      neutral_femalemax += 1
+ 
+                  #print("Fc=%.3f maxFc=%.3f cf=%d cfmax=%d" %(Fcount, maxFcount, correct_female, correct_femalemax)) 
+                  
+                  #if (maxMcountpos > -1000) and (maxFcountpos > -1000):
+                  if (maxMcountpos > 0) and (maxFcountpos > 0):
+                    total_femalegenderwordsposmax += 1
+                    if (maxFcountpos - maxMcountpos > 0):
+                      correct_femalemaxpos += 1
+                    elif (maxFcountpos - maxMcountpos < 0):
+                      #print("FEMALE GENDER FALSE IDENTIFICATION", Mcount, Fcount)
+                      false_femalemaxpos += 1
+                    else:
+                      #print("Neutral Male", Mcount, Fcount)
+                      neutral_femalemaxpos += 1                    
+           
+    
+           if (total_malegenderwordsmax > 10):
+             print('Male details:')
+             print("Word2Vec Sum_of_terms %d %d %d Unidentified=%.2f  Correct=%.2f" %(correct_male, total_malegenderwords, totalmalesentences, (totalmalesentences - total_malegenderwords)/totalmalesentences, correct_male/(total_malegenderwords-neutral_male)))           
+             print("Word2Vec Term frequency weighted %d %d %d Unidentified=%.2f  Correct=%.2f" %(correct_male_tf, total_malegenderwords, totalmalesentences, (totalmalesentences - total_malegenderwords)/totalmalesentences,  correct_male_tf/(total_malegenderwords-neutral_male_tf)))           
+#             
+#             print("%d %d %d Unid=%.2f Ov=%.2f Cor=%.2f" %(correct_malepos, total_posmalegenderwords, totalmalesentences, (totalmalesentences - total_posmalegenderwords)/totalmalesentences, correct_malepos/totalmalesentences, correct_malepos/(total_posmalegenderwords-neutral_malepos)))           
+#             print("%d %d %d Unid=%.2f Ov=%.2f Cor=%.2f" %(correct_malepos_tf, total_posmalegenderwords, totalmalesentences, (totalmalesentences - total_posmalegenderwords)/totalmalesentences, correct_malepos_tf/totalmalesentences, correct_malepos_tf/(total_posmalegenderwords-neutral_malepos_tf)))           
+              
+             print("Word2Vec Max of Terms %d %d %d Unidentified=%.2f Correct=%.2f" %(correct_malemax, total_malegenderwords, totalmalesentences, (totalmalesentences - total_malegenderwords)/totalmalesentences, correct_malemax/(total_malegenderwords-neutral_malemax)))           
+             print("Word2Vec POS sum %d %d %d Unidentified=%.2f  Correct=%.2f" %(correct_malemaxpos, total_posmalegenderwords, totalmalesentences, (totalmalesentences - total_posmalegenderwords)/totalmalesentences,  correct_malemaxpos/(total_posmalegenderwords-neutral_malemaxpos)))           
+             #print("totmalsen=%d totmalgen=%d totmalgenmax=%d cor_malmax=%d neutmalmax=%d" %(totalmalesentences, total_malegenderwords, total_malegenderwordsmax, correct_malemax, neutral_malemax) )
+            # print("totmal=%d totmalmax=%d corrmal=%d corrmalmax=%d" %(total_malegenderwords, total_malegenderwordsmax, correct_male, correct_malemax ))
+             #print("M Unid=%.2f Cor=%.2f" %((totalmalesentences - total_malegenderwordsmax)/totalmalesentences,  correct_malemax/(total_malegenderwordsmax-neutral_malemax)))           
+             #print("Unid=%.2f Cor=%.2f" %((totalmalesentences - total_malegenderwordsposmax)/totalmalesentences, correct_malemaxpos/(total_malegenderwordsposmax-neutral_malemaxpos)))           
+           
+           if (total_femalegenderwordsmax > 10):
+             print('Female details:')
+             print("Word2Vec Sum_of_terms  %d %d %d Unidentified=%.2f Correct=%.2f" %(correct_female, total_femalegenderwords, totalfemalesentences, (totalfemalesentences - total_femalegenderwords)/totalfemalesentences,  correct_female/(total_femalegenderwords - neutral_female)))           
+             print("Word2Vec Term frequency weighted %d %d %d Unidentified=%.2f Correct=%.2f" %(correct_female_tf, total_femalegenderwords, totalfemalesentences, (totalfemalesentences - total_femalegenderwords)/totalfemalesentences,  correct_female_tf/(total_femalegenderwords - neutral_female_tf)))           
+#             
+#             print("%d %d %d Unid=%.2f Ov=%.2f Cor=%.2f" %(correct_femalepos, total_posfemalegenderwords, totalfemalesentences, (totalfemalesentences - total_posfemalegenderwords)/totalfemalesentences, correct_femalepos/totalfemalesentences, correct_femalepos/(total_posfemalegenderwords-neutral_femalepos)))         
+#             print("%d %d %d Unid=%.2f Ov=%.2f Cor=%.2f" %(correct_femalepos_tf, total_posfemalegenderwords, totalfemalesentences, (totalfemalesentences - total_posfemalegenderwords)/totalfemalesentences, correct_femalepos_tf/totalfemalesentences, correct_femalepos_tf/(total_posfemalegenderwords-neutral_femalepos_tf)))         
+#             
+             print("Word2Vec Max of Terms %d %d %d Unidentified=%.2f  Correct=%.2f" %(correct_femalemax, total_femalegenderwords, totalfemalesentences, (totalfemalesentences - total_femalegenderwords)/totalfemalesentences, correct_femalemax/(total_femalegenderwords - neutral_femalemax)))           
+             print("Word2Vec POS sum %d %d %d Unidentified=%.2f  Correct=%.2f" %(correct_femalemaxpos, total_posfemalegenderwords, totalfemalesentences, (totalfemalesentences - total_posfemalegenderwords)/totalfemalesentences,  correct_femalemaxpos/(total_posfemalegenderwords-neutral_femalemaxpos)))         
+             #print("totfem=%d totfemmax=%d corrfem=%d corrfemmax=%d" %(total_femalegenderwords, total_femalegenderwordsmax, correct_female, correct_femalemax ))
+             #print("F Unid=%.2f Cor=%.2f" %((totalfemalesentences - total_femalegenderwordsmax)/totalfemalesentences, correct_femalemax/(total_femalegenderwordsmax - neutral_femalemax)))           
+             #print("Unid=%.2f Cor=%.2f" %((totalfemalesentences - total_femalegenderwordsposmax)/totalfemalesentences, correct_femalemaxpos/(total_femalegenderwordsposmax-neutral_femalemaxpos)))         
+             
+
+ 
+def get_names():
+    
+    import pickle
+    
+    FNAME_FILE = "female_names.pickle"
+    MNAME_FILE = "male_names.pickle"
+    
+    female_names_list = []
+    male_names_list = []
+    fnames_list = pickle.load(open(FNAME_FILE, "rb")) 
+    mnames_list = pickle.load(open(MNAME_FILE, "rb")) 
+    
+    #print(fnames_list)
+    print(mnames_list)
+    
+    ffilename = open('female.txt', 'r')
+    mfilename = open('male.txt', 'r')
+    
+    for line in ffilename.readlines():
+        row = line.strip().split(' ')
+        female_names_list.append(row[0].lower())
+        
+    for line in mfilename.readlines():
+        row = line.strip().split(' ')
+        male_names_list.append(row[0].lower())
+        
+        
+    pickle.dump(female_names_list, open(FNAME_FILE,'wb'))
+    pickle.dump(male_names_list, open(MNAME_FILE,'wb'))
+    #print(male_names_list)       
+    #print(row)
+    
+def eval_word2vec():
+   
+    print("Opening full (Pos+Neg) model...")
+    model = gensim.models.Word2Vec.load('C:\Python34\posneg_model_word2vec.txt')
+   
+    print('------WOMAN TRAITS -------------------------------')
+    print('caring',model.similarity('caring', 'woman')-model.similarity('caring', 'man'))
+    print('supportive',model.similarity('supportive', 'woman')-model.similarity('supportive', 'man'))
+    print('gentle',model.similarity('gentle', 'woman')-model.similarity('gentle', 'man'))
+    print('soft',model.similarity('soft', 'woman')-model.similarity('soft', 'man'))
+    print('emotional',model.similarity('emotional', 'woman')-model.similarity('emotional', 'man'))
+    print('upbeat',model.similarity('upbeat', 'woman')-model.similarity('upbeat', 'man'))
+    print('simple',model.similarity('simple', 'woman')-model.similarity('simple', 'man'))
+    print('loving',model.similarity('loving', 'woman')-model.similarity('loving', 'man'))
+    print('motherly',model.similarity('motherly', 'woman')-model.similarity('motherly', 'man'))
+    print('compassionate',model.similarity('compassionate', 'woman')-model.similarity('compassionate', 'man'))
+    print('strong',model.similarity('strong', 'woman')-model.similarity('strong', 'man'))
+    print('understanding',model.similarity('understanding', 'woman')-model.similarity('understanding', 'man'))
+   # print('vulnerable',model.similarity('vulnerable', 'woman')-model.similarity('vulnerable', 'man'))
+   
+    print('------MAN TRAITS -------------------------------') 
+    print('driven',model.similarity('driven', 'man')-model.similarity('driven', 'woman'))
+    print('clever',model.similarity('clever', 'man')-model.similarity('clever', 'woman'))
+    print('brilliant',model.similarity('brilliant', 'man')-model.similarity('brilliant', 'woman'))
+    print('leader',model.similarity('leader', 'man')-model.similarity('leader', 'woman'))
+    print('providing',model.similarity('providing', 'man')-model.similarity('providing', 'woman'))
+    print('serious',model.similarity('serious', 'man')-model.similarity('serious', 'woman'))
+    print('creative',model.similarity('creative', 'man')-model.similarity('creative', 'woman'))
+    print('witty',model.similarity('witty', 'man')-model.similarity('witty', 'woman'))
+    print('valiant',model.similarity('valiant', 'man')-model.similarity('valiant', 'woman'))
+    
+    
+    print(model.most_similar("man"))
+    print(model.most_similar(positive=['woman','king'], negative=['man'], topn=2))
+    print(model.most_similar(positive=['caring','supportive','gentle','loving','motherly','compassionate','emotional','simple'], topn=5))
+    print(model.most_similar(positive=['driven','clever','brilliant','leader','providing','serious','creative','witty','valiant'], topn=5))
+
+
+def main():
+
+    #get_names() # Routine to take Ananya's female and male gender list to a format usable here
+    #train_bias_word2vec() # Word2vec classifier training 
+    #train_bias_bayes() # Naive Baye's classifier training program
+    #plot_word2vec_tsne() # Plot word2vec with tsne
+    test_bias_word2vec() # Test word2vec correct gender results
+    #test_bias_bayes # Test Baye's correct gender results
+    
+    #eval_word2vec()
+    
+    
+
+if __name__ == '__main__':
+    main()
+
