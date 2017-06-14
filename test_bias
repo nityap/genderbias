@@ -277,7 +277,7 @@ def test_bias_bayes():
         elif (dir_type == 1):
           dirname = "C:/Python34/reviews/aclImdb/test/neg"
         elif (dir_type == 2):
-          dirname = "C:/Python34/Amazon/reviews/train"
+          dirname = "C:/Python34/Amazon/reviews/test"
           
           
         for file in os.listdir(dirname)[:plimit]:
@@ -652,22 +652,17 @@ def train_bias_word2vec():
      total_bothgenderwords = 0
      countMF = 0
      print("Reading training files and training word2vec POS model...")
-     for dir_type in range(0,3):
+     for dir_type in range(0,2):
        if (dir_type == 0):
          dirname = "C:/Python34/reviews/aclImdb/train/pos"
          pfile_no = 0
        elif (dir_type == 1):
          dirname = "C:/Python34/reviews/aclImdb/train/neg"
          pfile_no = 0
-       elif (dir_type == 2):
+       else:  #elif (dir_type == 2):
          dirname = "C:/Python34/Amazon/reviews/train"
          pfile_no = 0
-       elif (dir_type == 3):
-         dirname = "C:/Python34/reviews/aclImdb/test/pos"
-         pfile_no = 0
-       else:
-         dirname = "C:/Python34/reviews/aclImdb/test/neg"
-         pfile_no = 0
+
 
 
       
@@ -783,22 +778,17 @@ def train_bias_bayes():
      print("Reading training files and training POS model...")
 
 
-     for dir_type in range(0,3):
+     for dir_type in range(0,2):
        if (dir_type == 0):
          dirname = "C:/Python34/reviews/aclImdb/train/pos"
          pfile_no = 0
        elif (dir_type == 1):
          dirname = "C:/Python34/reviews/aclImdb/train/neg"
          pfile_no = 0
-       elif (dir_type == 2):
+       else:  # elif (dir_type == 2):
          dirname = "C:/Python34/Amazon/reviews/train"
          pfile_no = 0
-       elif (dir_type == 3):
-         dirname = "C:/Python34/reviews/aclImdb/test/pos"
-         pfile_no = 0
-       else:
-         dirname = "C:/Python34/reviews/aclImdb/test/neg"
-         pfile_no = 0
+
        
        for file in os.listdir(dirname)[:plimit]:
           pfile_no += 1
