@@ -962,8 +962,8 @@ def test_bias_word2vec():
      #print(both_sentences)
      print("Generating word2vec model now ....")
 
-     bothmodelpos = word2vec.Word2Vec(both_sentences_pos,size=500, window=5, hs=0, sg=0, min_count=1, iter=50)
-     bothmodel = word2vec.Word2Vec(both_sentences,size=500, window=5, hs=0, sg=0, min_count=1, iter=50)
+     bothmodelpos = word2vec.Word2Vec(both_sentences_pos,size=500, window=5, hs=0, sg=0, min_count=3, iter=50)
+     bothmodel = word2vec.Word2Vec(both_sentences,size=500, window=5, hs=0, sg=0, min_count=3, iter=50)
 
   
      print("Done generating model")
